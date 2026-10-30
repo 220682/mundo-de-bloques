@@ -1,0 +1,1113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mundo de Bloques</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#8ec5ff;font-family:"Pixelify Sans",system-ui,sans-serif;color:#fff;user-select:none}
+  canvas#escena{display:block}
+  .oculto{display:none!important}
+
+  /* ---------- HUD ---------- */
+  #mira{position:fixed;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;pointer-events:none}
+  #mira:before,#mira:after{content:"";position:absolute;background:#fff;mix-blend-mode:difference}
+  #mira:before{left:9px;top:0;width:2px;height:20px}
+  #mira:after{top:9px;left:0;height:2px;width:20px}
+  #bajoAgua{position:fixed;inset:0;background:rgba(25,70,190,.38);pointer-events:none;display:none}
+  #panel{position:fixed;top:10px;left:10px;background:rgba(0,0,0,.55);padding:8px 12px;font-size:14px;line-height:1.45;max-width:330px;border:2px solid #000}
+  #panel b{color:#ffd54f}
+  #panel.sinAyuda #ayuda{display:none}
+  #estado{color:#80deea;margin:4px 0}
+  #fps{color:#aaa;font-size:11px}
+  .mini{font-family:inherit;font-size:14px;padding:4px 10px;border:2px solid #000;background:#6f6f6f;color:#fff;cursor:pointer;margin:2px 4px 2px 0;box-shadow:inset 2px 2px #9c9c9c,inset -2px -2px #444}
+  .mini:disabled{opacity:.6;cursor:default}
+  #barra{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);display:flex;background:#00000080;border:2px solid #000;padding:2px}
+  .ranura{width:48px;height:48px;border:3px solid #8b8b8b;background:#8b8b8b40;margin:1px;position:relative;box-sizing:border-box;cursor:pointer}
+  .ranura.sel{border-color:#fff;outline:2px solid #000;z-index:1}
+  .ranura img{width:38px;height:38px;margin:2px;image-rendering:pixelated}
+  .ranura span{position:absolute;left:2px;top:-2px;font-size:11px;color:#ddd;text-shadow:1px 1px 0 #000}
+  #nombre{position:fixed;left:50%;bottom:70px;transform:translateX(-50%);font-size:18px;text-shadow:2px 2px 0 #000;opacity:0;transition:opacity .4s;pointer-events:none}
+  #camara{position:fixed;right:10px;top:10px;width:220px;height:165px;border:2px solid #000;overflow:hidden;background:#000}
+  #camara video,#camara canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+  #aviso{position:fixed;left:50%;top:62%;transform:translateX(-50%);background:rgba(0,0,0,.55);padding:6px 12px;font-size:16px;pointer-events:none}
+  #toast{position:fixed;left:12px;bottom:12px;font-size:15px;text-shadow:2px 2px 0 #000;opacity:0;transition:opacity .5s;pointer-events:none}
+  #coords{position:fixed;left:12px;bottom:36px;font-size:13px;text-shadow:1px 1px 0 #000;pointer-events:none}
+
+  /* ---------- Menús ---------- */
+  #menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);backdrop-filter:blur(2px)}
+  #menu.pausa{background:rgba(0,0,0,.6)}
+  .pantalla{display:flex;flex-direction:column;align-items:center;gap:10px;max-width:92vw}
+  .titulo{font-size:64px;font-weight:700;letter-spacing:3px;color:#d8d8d8;text-shadow:4px 4px 0 #3a3a3a,6px 6px 0 #000;margin-bottom:4px;text-align:center}
+  .lema{color:#ffff55;font-size:20px;text-shadow:2px 2px 0 #3f3f00;transform:rotate(-8deg);margin:-14px 0 24px 280px;animation:latido .6s infinite alternate}
+  @keyframes latido{to{transform:rotate(-8deg) scale(1.08)}}
+  h2{font-size:28px;margin:0 0 6px;text-shadow:3px 3px 0 #000;font-weight:400}
+  .btn{font-family:inherit;font-size:21px;color:#fff;text-shadow:2px 2px 0 #3a3a3a;background:#727272;border:2px solid #000;box-shadow:inset 2px 2px #ababab,inset -2px -3px #4a4a4a;width:400px;max-width:88vw;padding:9px 0;cursor:pointer}
+  .btn:hover{background:#7f8fc8;box-shadow:inset 2px 2px #b5c2f0,inset -2px -3px #4f5c94}
+  .btn:disabled{color:#aaa;background:#555;cursor:default}
+  .fila{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .fila .btn{width:195px}
+  .lista{width:520px;max-width:88vw;max-height:42vh;overflow:auto;background:rgba(0,0,0,.55);border:2px solid #000;padding:4px}
+  .item{padding:8px 12px;cursor:pointer;border:2px solid transparent;font-size:20px}
+  .item small{display:block;color:#aaa;font-size:14px}
+  .item:hover{background:#ffffff18}
+  .item.sel{border-color:#fff}
+  .vacio{color:#aaa;padding:12px;font-size:16px}
+  input.txt{font-family:inherit;font-size:20px;background:#000;color:#fff;border:2px solid #a0a0a0;padding:8px 10px;width:376px;max-width:84vw;outline:none}
+  input.txt:focus{border-color:#fff}
+  label{font-size:16px;color:#ccc;align-self:flex-start;margin-left:max(0px,calc(50% - 200px))}
+  .nota{color:#bbb;font-size:14px;text-align:center;max-width:520px}
+  #pInventario .rejilla{display:grid;grid-template-columns:repeat(8,52px);gap:3px;background:#c6c6c6;border:3px solid #000;padding:10px;box-shadow:inset 3px 3px #fff,inset -3px -3px #555}
+  #pInventario .ranura{background:#8b8b8b;border-color:#373737 #fff #fff #373737}
+  #pInventario .ranura:hover{background:#a8a8ff}
+  #invBarra{display:flex;background:#c6c6c6;border:3px solid #000;padding:6px}
+  #invBarra .ranura{background:#8b8b8b;border-color:#373737 #fff #fff #373737}
+  #invBarra .ranura.sel{border-color:#fff;outline:2px solid #000}
+</style>
+</head>
+<body>
+<canvas id="escena"></canvas>
+
+<div id="hud" class="oculto">
+  <div id="bajoAgua"></div>
+  <div id="mira"></div>
+  <div id="aviso">Clic en el mundo para jugar con mouse y teclado</div>
+  <div id="panel">
+    <div id="ayuda">
+      <b>Cabeza = moverse</b><br>
+      · Gira la cabeza = mirar (si giras más, sigue girando)<br>
+      · Acércate a la cámara = avanzar · Aléjate = retroceder<br>
+      · Abre la boca = saltar / nadar<br>
+      <b>Manos = construir</b> (cualquiera)<br>
+      · Pulgar+índice sostenido = romper · Pulgar+medio = poner · Puño = cambiar bloque<br>
+      <b>Teclado</b>: WASD, espacio, clic izq. rompe, clic der. pone, 1-9, E inventario, F volar, Esc pausa, H oculta esto.
+    </div>
+    <div id="estado">Cámara apagada.</div>
+    <div id="fps"></div>
+    <button class="mini" id="btnCam">Activar cámara</button>
+    <button class="mini" id="btnCentro">Calibrar cabeza (C)</button><br>
+    Sensibilidad <input id="sens" type="range" min="0.4" max="3" step="0.1" value="1.2" style="vertical-align:middle;width:120px">
+  </div>
+  <div id="coords"></div>
+  <div id="nombre"></div>
+  <div id="barra"></div>
+  <div id="camara" class="oculto">
+    <video id="video" playsinline muted></video>
+    <canvas id="trazo"></canvas>
+  </div>
+</div>
+<div id="toast"></div>
+
+<div id="menu">
+  <div class="pantalla" id="pTitulo">
+    <div class="titulo">MUNDO DE BLOQUES</div>
+    <div class="lema">¡Con la cabeza y las manos!</div>
+    <button class="btn" id="bJugar">Jugar</button>
+    <div class="nota" id="dondeGuarda"></div>
+  </div>
+
+  <div class="pantalla oculto" id="pJugadores">
+    <h2>¿Quién va a jugar?</h2>
+    <div class="lista" id="listaJugadores"></div>
+    <label>Nuevo jugador</label>
+    <input class="txt" id="nuevoJugador" maxlength="40" placeholder="Escribe tu nombre">
+    <div class="fila"><button class="btn" id="bAgregarJugador">Agregar</button><button class="btn" id="bVolverTitulo">Volver</button></div>
+  </div>
+
+  <div class="pantalla oculto" id="pMundos">
+    <h2 id="tituloMundos">Mundos</h2>
+    <div class="lista" id="listaMundos"></div>
+    <div class="fila"><button class="btn" id="bJugarMundo" disabled>Jugar el mundo</button><button class="btn" id="bNuevoMundo">Crear mundo nuevo</button></div>
+    <div class="fila"><button class="btn" id="bCambiarJugador">Cambiar jugador</button><button class="btn" id="bVolverTitulo2">Inicio</button></div>
+  </div>
+
+  <div class="pantalla oculto" id="pCrear">
+    <h2>Crear mundo nuevo</h2>
+    <label>Nombre del mundo</label>
+    <input class="txt" id="nombreMundo" maxlength="40" value="Mi mundo">
+    <label>Semilla (opcional: la misma semilla da el mismo terreno)</label>
+    <input class="txt" id="semillaMundo" maxlength="30" placeholder="Déjala vacía para uno al azar">
+    <button class="btn" id="bTipo">Tipo de mundo: Normal</button>
+    <div class="fila"><button class="btn" id="bCrear">Crear mundo</button><button class="btn" id="bCancelarCrear">Cancelar</button></div>
+  </div>
+
+  <div class="pantalla oculto" id="pPausa">
+    <h2>Juego en pausa</h2>
+    <div class="nota" id="infoPausa"></div>
+    <button class="btn" id="bVolverJuego">Volver al juego</button>
+    <button class="btn" id="bGuardar">Guardar</button>
+    <button class="btn" id="bSalir">Guardar y salir al menú</button>
+  </div>
+
+  <div class="pantalla oculto" id="pInventario">
+    <h2>Bloques</h2>
+    <div class="nota">Elige un casillero de abajo y luego haz clic en un bloque para ponerlo ahí. E para cerrar.</div>
+    <div class="rejilla" id="rejilla"></div>
+    <div id="invBarra"></div>
+  </div>
+
+  <div class="pantalla oculto" id="pCargando">
+    <h2>Generando el mundo...</h2>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { FilesetResolver, HandLandmarker, FaceLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
+
+const $ = id => document.getElementById(id);
+
+// ================= Bloques =================
+const AIRE = 0, PASTO = 1, TIERRA = 2, PIEDRA = 3, ROCA = 4, ARENA = 5, TRONCO = 6, HOJAS = 7, TABLONES = 8, VIDRIO = 9, LADRILLO = 10, AGUA = 11;
+const COLORES = [["Bloque rojo", [200, 50, 45]], ["Bloque naranja", [235, 130, 40]], ["Bloque amarillo", [240, 210, 60]],
+                 ["Bloque verde", [110, 190, 50]], ["Bloque celeste", [80, 170, 220]], ["Bloque azul", [50, 70, 180]],
+                 ["Bloque morado", [130, 60, 170]], ["Bloque rosado", [235, 140, 170]], ["Bloque blanco", [235, 235, 235]],
+                 ["Bloque negro", [40, 40, 45]]];
+const PRIMER_COLOR = 12;   // los bloques de color son 12, 13, ...
+const NOMBRES = ["", "Pasto", "Tierra", "Piedra", "Roca", "Arena", "Tronco", "Hojas", "Tablones", "Vidrio", "Ladrillo", "Agua", ...COLORES.map(c => c[0])];
+const TRANSP = { [HOJAS]: true, [VIDRIO]: true, [AGUA]: true };
+const DUREZAS = { 1: .45, 2: .4, 3: 1.1, 4: 1.2, 5: .4, 6: .8, 7: .15, 8: .7, 9: .25, 10: 1.2 };   // segundos para romper
+const dureza = t => DUREZAS[t] || .3;
+const TODOS = [PASTO, TIERRA, PIEDRA, ROCA, ARENA, TRONCO, HOJAS, TABLONES, VIDRIO, LADRILLO, ...COLORES.map((_, i) => PRIMER_COLOR + i)];
+const BARRA_INICIAL = [PASTO, TIERRA, PIEDRA, ROCA, TABLONES, TRONCO, VIDRIO, LADRILLO, PRIMER_COLOR];
+
+// casilla de textura de cada cara (orden de caras: +x, -x, +y arriba, -y abajo, +z, -z)
+function TILE(t, f) {
+  switch (t) {
+    case PASTO: return f === 2 ? 0 : f === 3 ? 2 : 1;
+    case TIERRA: return 2; case PIEDRA: return 3; case ROCA: return 4; case ARENA: return 5;
+    case TRONCO: return f === 2 || f === 3 ? 7 : 6;
+    case HOJAS: return 8; case TABLONES: return 9; case VIDRIO: return 10; case LADRILLO: return 11; case AGUA: return 12;
+  }
+  return t >= PRIMER_COLOR ? 13 + t - PRIMER_COLOR : 3;
+}
+
+// ================= Texturas pixeladas (dibujadas en código) =================
+let semTex = 12345;
+const rnd = () => (semTex = (semTex * 16807) % 2147483647) / 2147483647;
+const rgb = (r, g, b, k = 1) => `rgb(${Math.min(255, r * k) | 0},${Math.min(255, g * k) | 0},${Math.min(255, b * k) | 0})`;
+const vr = v => 1 + (rnd() - .5) * v;
+function lienzo(pintar) {
+  const c = document.createElement("canvas"); c.width = c.height = 16;
+  const g = c.getContext("2d");
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const col = pintar(x, y); if (!col) continue;
+    g.fillStyle = col; g.fillRect(x, y, 1, 1);
+  }
+  return c;
+}
+const verde = () => rgb(98, 160, 58, rnd() < .1 ? 1.25 : vr(.3));
+const tierra = () => rgb(134, 96, 67, rnd() < .1 ? .7 : vr(.35));
+const puntos = Array.from({ length: 9 }, () => [rnd() * 16, rnd() * 16, .75 + rnd() * .45]);
+function celdaDe(x, y) {
+  let mejor = 0, md = 1e9;
+  puntos.forEach((p, i) => {
+    const dx = Math.min(Math.abs(x - p[0]), 16 - Math.abs(x - p[0])), dy = Math.min(Math.abs(y - p[1]), 16 - Math.abs(y - p[1]));
+    if (dx * dx + dy * dy < md) { md = dx * dx + dy * dy; mejor = i; }
+  });
+  return mejor;
+}
+const TILES = [
+  lienzo(verde),                                                                                     // 0 pasto arriba
+  lienzo((x, y) => (y < 3 || (y === 3 && rnd() < .6) || (y === 4 && rnd() < .25) ? verde() : tierra())), // 1 pasto lado
+  lienzo(tierra),                                                                                    // 2 tierra
+  lienzo(() => rgb(125, 125, 125, rnd() < .08 ? .75 : vr(.22))),                                     // 3 piedra
+  lienzo((x, y) => { const c = celdaDe(x, y); const borde = celdaDe(x + 1, y) !== c || celdaDe(x, y + 1) !== c;
+                     return rgb(122, 122, 122, borde ? .5 : puntos[c][2] * vr(.15)); }),               // 4 roca
+  lienzo(() => rgb(219, 207, 150, vr(.14))),                                                         // 5 arena
+  lienzo(x => rgb(102, 79, 46, (x % 4 === 0 ? .7 : 1) * vr(.2))),                                    // 6 tronco lado
+  lienzo((x, y) => { const d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5));
+                     return d > 6.5 ? rgb(102, 79, 46, vr(.2)) : Math.floor(d) % 2 ? rgb(170, 136, 82, vr(.1)) : rgb(145, 112, 66, vr(.1)); }), // 7 tronco arriba
+  lienzo(() => (rnd() < .22 ? null : rgb(58, 125, 38, vr(.55)))),                                    // 8 hojas
+  lienzo((x, y) => { const fila = Math.floor(y / 4);
+                     if (y % 4 === 3 || x === (fila % 2 ? 4 : 12)) return rgb(110, 84, 48);
+                     return rgb(170, 136, 82, vr(.12)); }),                                            // 9 tablones
+  lienzo((x, y) => (x === 0 || y === 0 || x === 15 || y === 15 ? "rgb(215,235,245)" :
+                    (x + y === 7 && x > 1 && x < 6) || (x + y === 9 && x > 2 && x < 6) ? "rgb(255,255,255)" : null)), // 10 vidrio
+  lienzo((x, y) => { const off = Math.floor(y / 4) % 2 ? 4 : 0;
+                     return y % 4 === 3 || (x + off) % 8 === 7 ? rgb(185, 175, 165, vr(.1)) : rgb(150, 62, 45, vr(.22)); }), // 11 ladrillo
+  lienzo(() => rgb(48, 92, 200, vr(.15))),                                                           // 12 agua
+  ...COLORES.map(([, [r, g, b]]) => lienzo((x, y) => rgb(r, g, b, vr(.12) * ((x + y) % 4 === 0 || (x - y + 16) % 4 === 0 ? .9 : 1)))), // 13+ colores
+];
+const atlasC = document.createElement("canvas"); atlasC.width = atlasC.height = 128;
+TILES.forEach((c, i) => atlasC.getContext("2d").drawImage(c, (i % 8) * 16, Math.floor(i / 8) * 16));
+const atlas = new THREE.CanvasTexture(atlasC);
+atlas.magFilter = atlas.minFilter = THREE.NearestFilter; atlas.generateMipmaps = false; atlas.colorSpace = THREE.SRGBColorSpace;
+const E = 0.01;   // margen para que no se mezclen casillas vecinas del atlas
+
+// color medio de cada casilla (para las partículas)
+const COLOR_MEDIO = TILES.map(c => {
+  const d = c.getContext("2d").getImageData(0, 0, 16, 16).data; let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3]) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+  return new THREE.Color(`rgb(${r / n | 0},${g / n | 0},${b / n | 0})`);
+});
+
+// ícono en perspectiva de cada bloque (barra e inventario)
+function icono(t) {
+  const c = document.createElement("canvas"); c.width = c.height = 48;
+  const g = c.getContext("2d"); g.imageSmoothingEnabled = false;
+  const caras = [[TILES[TILE(t, 2)], [22 / 16, 11 / 16, -22 / 16, 11 / 16, 24, 2], 0],
+                 [TILES[TILE(t, 4)], [22 / 16, 11 / 16, 0, 22 / 16, 2, 13], .25],
+                 [TILES[TILE(t, 0)], [22 / 16, -11 / 16, 0, 22 / 16, 24, 24], .45]];
+  for (const [img, m, sombra] of caras) {
+    g.setTransform(...m); g.globalCompositeOperation = "source-over"; g.drawImage(img, 0, 0);
+    g.globalCompositeOperation = "source-atop"; g.fillStyle = `rgba(0,0,0,${sombra})`; g.fillRect(0, 0, 16, 16);
+  }
+  return c.toDataURL();
+}
+const ICONO = {}; TODOS.forEach(t => (ICONO[t] = icono(t)));
+
+// ================= Mundo =================
+const SX = 96, SY = 44, SZ = 96, CH = 16, MAR = 12;
+const mundo = new Uint8Array(SX * SY * SZ);
+const idx = (x, y, z) => x + SX * (z + SZ * y);
+const fuera = (x, z) => x < 0 || z < 0 || x >= SX || z >= SZ;
+function get(x, y, z) { if (y < 0) return PIEDRA; if (fuera(x, z) || y >= SY) return AIRE; return mundo[idx(x, y, z)]; }
+function set(x, y, z, t) { if (fuera(x, z) || y < 0 || y >= SY) return false; mundo[idx(x, y, z)] = t; return true; }
+function solido(x, y, z) { if (fuera(x, z) || y < 0) return true; if (y >= SY) return false; const t = mundo[idx(x, y, z)]; return t !== AIRE && t !== AGUA; }
+const opaco = t => t !== AIRE && !TRANSP[t];
+
+function hash(x, z, s) {
+  let h = (Math.imul(x, 374761393) + Math.imul(z, 668265263) + Math.imul(s, 982451653)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function ruido2(x, z, s) {
+  const xi = Math.floor(x), zi = Math.floor(z), fx = x - xi, fz = z - zi;
+  const u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz);
+  const a = hash(xi, zi, s), b = hash(xi + 1, zi, s), c = hash(xi, zi + 1, s), d = hash(xi + 1, zi + 1, s);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+function fbm(x, z, s) { let t = 0, a = .5, f = 1; for (let o = 0; o < 4; o++) { t += a * ruido2(x * f, z * f, s + o); a *= .5; f *= 2; } return t / .9375; }
+const cima = (x, z) => { let y = SY - 1; while (y > 0 && get(x, y, z) === AIRE) y--; return y; };
+
+function crearRng(s) { let a = ((s >>> 0) % 2147483646) + 1; return () => (a = (a * 16807) % 2147483647) / 2147483647; }
+function textoASemilla(txt) {
+  txt = (txt || "").trim();
+  if (!txt) return Math.floor(Math.random() * 2147483646);
+  if (/^-?\d+$/.test(txt)) return Math.abs(parseInt(txt, 10)) % 2147483646;
+  let h = 0; for (const ch of txt) h = (Math.imul(h, 31) + ch.codePointAt(0)) | 0;
+  return Math.abs(h) % 2147483646;
+}
+
+function generar(sem, tipo) {
+  mundo.fill(AIRE);
+  if (tipo === "plano") {
+    for (let x = 0; x < SX; x++) for (let z = 0; z < SZ; z++)
+      for (let y = 0; y <= 10; y++) set(x, y, z, y === 10 ? PASTO : y > 6 ? TIERRA : PIEDRA);
+    return;
+  }
+  const r = crearRng(sem);
+  for (let x = 0; x < SX; x++)
+    for (let z = 0; z < SZ; z++) {
+      const h = Math.min(SY - 12, Math.floor(5 + Math.pow(fbm(x / 42, z / 42, sem), 1.6) * 40));
+      const playa = h <= MAR + 1, monte = h > 27;
+      for (let y = 0; y <= h; y++) {
+        let t = PIEDRA;
+        if (y > h - 3) t = playa ? ARENA : monte ? PIEDRA : y === h ? PASTO : TIERRA;
+        set(x, y, z, t);
+      }
+      for (let y = h + 1; y <= MAR; y++) set(x, y, z, AGUA);
+    }
+  for (let i = 0; i < 110; i++) {
+    const x = 3 + Math.floor(r() * (SX - 6)), z = 3 + Math.floor(r() * (SZ - 6)), h = cima(x, z);
+    if (get(x, h, z) !== PASTO) continue;
+    const alto = 4 + Math.floor(r() * 3), tope = h + alto;
+    for (let y = tope - 1; y <= tope + 2; y++) {
+      const rad = y <= tope ? 2 : 1;
+      for (let dx = -rad; dx <= rad; dx++) for (let dz = -rad; dz <= rad; dz++) {
+        const esquina = Math.abs(dx) === rad && Math.abs(dz) === rad;
+        if (esquina && (y === tope + 2 || r() < .5)) continue;
+        if (get(x + dx, y, z + dz) === AIRE) set(x + dx, y, z + dz, HOJAS);
+      }
+    }
+    for (let y = h + 1; y <= tope; y++) set(x, y, z, TRONCO);
+  }
+}
+
+// ================= Escena =================
+const lienzoEscena = $("escena");
+const renderer = new THREE.WebGLRenderer({ canvas: lienzoEscena });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const CIELO = 0x8ec5ff;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(CIELO);
+scene.fog = new THREE.Fog(CIELO, 35, 85);
+const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 300);
+camera.rotation.order = "YXZ";
+scene.add(camera);
+function tamano() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+addEventListener("resize", tamano); tamano();
+
+const matOpaco = new THREE.MeshBasicMaterial({ map: atlas, vertexColors: true, alphaTest: .5 });
+const matAgua = new THREE.MeshBasicMaterial({ map: atlas, vertexColors: true, transparent: true, opacity: .72, depthWrite: false, side: THREE.DoubleSide });
+
+// ================= Malla por trozos (solo caras visibles + sombra en esquinas) =================
+const CARAS = [   // n = normal, o = esquina de inicio, u/v = ejes de la cara (u × v = n), s = luz de la cara
+  { n: [1, 0, 0],  o: [1, 0, 1], u: [0, 0, -1], v: [0, 1, 0],  s: .8 },
+  { n: [-1, 0, 0], o: [0, 0, 0], u: [0, 0, 1],  v: [0, 1, 0],  s: .8 },
+  { n: [0, 1, 0],  o: [0, 1, 1], u: [1, 0, 0],  v: [0, 0, -1], s: 1 },
+  { n: [0, -1, 0], o: [0, 0, 0], u: [1, 0, 0],  v: [0, 0, 1],  s: .5 },
+  { n: [0, 0, 1],  o: [0, 0, 1], u: [1, 0, 0],  v: [0, 1, 0],  s: .65 },
+  { n: [0, 0, -1], o: [1, 0, 0], u: [-1, 0, 0], v: [0, 1, 0],  s: .65 },
+];
+const ESQ = [[0, 0], [1, 0], [1, 1], [0, 1]];
+const AO = [.45, .62, .8, 1];
+function dibujaCara(t, nb) {
+  if (nb === AIRE) return true;
+  if (t === AGUA) return false;
+  if (nb === AGUA) return true;
+  if (TRANSP[nb]) return !(nb === t && t === VIDRIO);
+  return false;
+}
+const trozos = {};
+function construirTrozo(cx, cz) {
+  const capas = { op: { p: [], uv: [], c: [], i: [] }, ag: { p: [], uv: [], c: [], i: [] } };
+  for (let y = 0; y < SY; y++) for (let z = cz * CH; z < cz * CH + CH; z++) for (let x = cx * CH; x < cx * CH + CH; x++) {
+    const t = mundo[idx(x, y, z)]; if (!t) continue;
+    const aguaArriba = t === AGUA && get(x, y + 1, z) === AGUA;
+    for (let f = 0; f < 6; f++) {
+      const C = CARAS[f], [nx, ny, nz] = C.n;
+      if (!dibujaCara(t, get(x + nx, y + ny, z + nz))) continue;
+      const B = t === AGUA ? capas.ag : capas.op, tl = TILE(t, f), base = B.p.length / 3, ao = [];
+      const ox = x + nx, oy = y + ny, oz = z + nz;
+      for (const [a, b] of ESQ) {
+        const px = x + C.o[0] + a * C.u[0] + b * C.v[0];
+        let py = y + C.o[1] + a * C.u[1] + b * C.v[1];
+        const pz = z + C.o[2] + a * C.u[2] + b * C.v[2];
+        if (t === AGUA && !aguaArriba && py === y + 1) py -= .12;          // superficie del agua un poco más baja
+        B.p.push(px, py, pz);
+        B.uv.push((tl % 8 + (a ? 1 - E : E)) / 8, 1 - (Math.floor(tl / 8) + (b ? E : 1 - E)) / 8);
+        let luz = C.s;
+        if (t !== AGUA) {
+          const sa = a ? 1 : -1, sb = b ? 1 : -1;
+          const s1 = opaco(get(ox + sa * C.u[0], oy + sa * C.u[1], oz + sa * C.u[2]));
+          const s2 = opaco(get(ox + sb * C.v[0], oy + sb * C.v[1], oz + sb * C.v[2]));
+          const ce = opaco(get(ox + sa * C.u[0] + sb * C.v[0], oy + sa * C.u[1] + sb * C.v[1], oz + sa * C.u[2] + sb * C.v[2]));
+          const n = s1 && s2 ? 0 : 3 - (s1 + s2 + ce);
+          ao.push(n); luz *= AO[n];
+        }
+        B.c.push(luz, luz, luz);
+      }
+      if (ao.length && ao[0] + ao[2] < ao[1] + ao[3]) B.i.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
+      else B.i.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+  }
+  const clave = cx + "," + cz;
+  (trozos[clave] || []).forEach(m => { scene.remove(m); m.geometry.dispose(); });
+  trozos[clave] = [];
+  for (const [k, matl] of [["op", matOpaco], ["ag", matAgua]]) {
+    const B = capas[k]; if (!B.i.length) continue;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(B.p, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(B.uv, 2));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(B.c, 3));
+    g.setIndex(B.i);
+    const m = new THREE.Mesh(g, matl);
+    if (k === "ag") m.renderOrder = 1;
+    scene.add(m); trozos[clave].push(m);
+  }
+}
+function construirTodo() { for (let cx = 0; cx < SX / CH; cx++) for (let cz = 0; cz < SZ / CH; cz++) construirTrozo(cx, cz); }
+
+let cambios = new Map();   // lo que construyó el jugador (es lo que se guarda)
+let hayCambios = false;
+function cambiar(x, y, z, t) {
+  if (!set(x, y, z, t)) return false;
+  cambios.set(idx(x, y, z), t); hayCambios = true;
+  const hechos = new Set();
+  for (const dx of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+    if (fuera(x + dx, z + dz)) continue;
+    const cx = Math.floor((x + dx) / CH), cz = Math.floor((z + dz) / CH), k = cx + "," + cz;
+    if (!hechos.has(k)) { hechos.add(k); construirTrozo(cx, cz); }
+  }
+  return true;
+}
+
+// ================= Cielo: sol y nubes =================
+const sol = new THREE.Mesh(new THREE.PlaneGeometry(18, 18), new THREE.MeshBasicMaterial({ color: 0xfff6c0, fog: false }));
+scene.add(sol);
+const nubesC = document.createElement("canvas"); nubesC.width = nubesC.height = 64;
+{ const g = nubesC.getContext("2d");
+  for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++)
+    if (fbm(x / 6, y / 6, 50) > .58) { g.fillStyle = "#fff"; g.fillRect(x, y, 1, 1); } }
+const nubesT = new THREE.CanvasTexture(nubesC);
+nubesT.magFilter = THREE.NearestFilter; nubesT.wrapS = nubesT.wrapT = THREE.RepeatWrapping; nubesT.repeat.set(3, 3);
+const nubes = new THREE.Mesh(new THREE.PlaneGeometry(900, 900),
+  new THREE.MeshBasicMaterial({ map: nubesT, transparent: true, opacity: .85, fog: false, side: THREE.DoubleSide, depthWrite: false }));
+nubes.rotation.x = -Math.PI / 2; scene.add(nubes);
+
+// ================= Selección, grietas, partículas =================
+const marco = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.004, 1.004, 1.004)),
+                                     new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: .6 }));
+scene.add(marco);
+const grietaPix = [];
+{ let gx = 8, gy = 8; for (let i = 0; i < 140; i++) { if (i % 14 === 0) { gx = 4 + Math.floor(rnd() * 8); gy = 4 + Math.floor(rnd() * 8); }
+  gx = Math.max(0, Math.min(15, gx + Math.round((rnd() - .5) * 2.2))); gy = Math.max(0, Math.min(15, gy + Math.round((rnd() - .5) * 2.2)));
+  grietaPix.push([gx, gy]); } }
+const matGrieta = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement("canvas"); c.width = c.height = 16; const g = c.getContext("2d");
+  g.fillStyle = "rgba(0,0,0,.5)"; grietaPix.slice(0, (k + 1) * 17).forEach(([x, y]) => g.fillRect(x, y, 1, 1));
+  const t = new THREE.CanvasTexture(c); t.magFilter = t.minFilter = THREE.NearestFilter;
+  return new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1 });
+});
+const grieta = new THREE.Mesh(new THREE.BoxGeometry(1.002, 1.002, 1.002), matGrieta[0]);
+scene.add(grieta);
+
+const particulas = [];
+const geoPart = new THREE.BoxGeometry(.12, .12, .12);
+function estallido(x, y, z, t) {
+  const mat = new THREE.MeshBasicMaterial({ color: COLOR_MEDIO[TILE(t, 4)] });
+  for (let i = 0; i < 14; i++) {
+    const m = new THREE.Mesh(geoPart, mat);
+    m.position.set(x + .2 + rnd() * .6, y + .2 + rnd() * .6, z + .2 + rnd() * .6);
+    scene.add(m);
+    particulas.push({ m, vx: (rnd() - .5) * 3, vy: 1 + rnd() * 3, vz: (rnd() - .5) * 3, vida: .6 + rnd() * .4 });
+  }
+}
+
+// ================= Bloque en la mano =================
+function geoBloque(t) {
+  const g = new THREE.BoxGeometry(1, 1, 1), uv = g.attributes.uv, col = [];
+  const luz = [.8, .8, 1, .5, .65, .65];
+  for (let f = 0; f < 6; f++) {
+    const tl = TILE(t, f);
+    for (let k = 0; k < 4; k++) {
+      const i = f * 4 + k, u = uv.getX(i), v = uv.getY(i);
+      uv.setXY(i, (tl % 8 + E + u * (1 - 2 * E)) / 8, 1 - (Math.floor(tl / 8) + E + (1 - v) * (1 - 2 * E)) / 8);
+      col.push(luz[f], luz[f], luz[f]);
+    }
+  }
+  g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  return g;
+}
+const enMano = new THREE.Mesh(geoBloque(PASTO),
+  new THREE.MeshBasicMaterial({ map: atlas, vertexColors: true, alphaTest: .5, depthTest: false, fog: false, transparent: true }));  // transparente: se dibuja después del agua
+enMano.renderOrder = 10; enMano.scale.setScalar(.3);
+camera.add(enMano);
+let golpe = 0;   // animación del brazo al poner o romper
+
+// ================= Sonidos simples =================
+let audio = null;
+function activarAudio() { if (!audio) audio = new AudioContext(); if (audio.state === "suspended") audio.resume(); }
+function sonido(frec, dur, vol) {
+  if (!audio) return;
+  const n = Math.floor(audio.sampleRate * dur), buf = audio.createBuffer(1, n, audio.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+  const src = audio.createBufferSource(), fil = audio.createBiquadFilter(), g = audio.createGain();
+  src.buffer = buf; fil.type = "lowpass"; fil.frequency.value = frec; g.gain.value = vol;
+  src.connect(fil).connect(g).connect(audio.destination); src.start();
+}
+function clicMenu() { activarAudio(); sonido(2500, .05, .35); }
+
+// ================= Jugador =================
+const R = .3, ALTO = 1.75, OJOS = 1.62, VEL = 4.3, G = 26, SALTO = 8.2, ALCANCE = 5, VEL_VUELO = 8;
+const p = { x: 0, y: 0, z: 0, vy: 0, enSuelo: false };
+let yaw = Math.PI * .75, pitch = -.15, volar = false;
+function aparecer() {
+  for (let r = 0; r < 40; r++) for (let k = 0; k < 16; k++) {
+    const x = Math.floor(SX / 2 + Math.cos(k / 16 * 6.283) * r), z = Math.floor(SZ / 2 + Math.sin(k / 16 * 6.283) * r);
+    const t = get(x, cima(x, z), z);
+    if (t === PASTO || t === ARENA) { p.x = x + .5; p.z = z + .5; p.y = cima(x, z) + 1; p.vy = 0; return; }
+  }
+  p.x = SX / 2; p.z = SZ / 2; p.y = SY - 1;
+}
+
+function choca(px, py, pz) {
+  for (let x = Math.floor(px - R); x <= Math.floor(px + R); x++)
+    for (let y = Math.floor(py); y <= Math.floor(py + ALTO - .01); y++)
+      for (let z = Math.floor(pz - R); z <= Math.floor(pz + R); z++)
+        if (solido(x, y, z)) return true;
+  return false;
+}
+
+// recorre los cubos en la línea de la mira
+function apuntar() {
+  const o = camera.position, d = new THREE.Vector3(); camera.getWorldDirection(d);
+  let x = Math.floor(o.x), y = Math.floor(o.y), z = Math.floor(o.z);
+  const paso = v => (v > 0 ? 1 : -1), td = v => (v === 0 ? Infinity : Math.abs(1 / v));
+  const t0 = (o, c, v, s, tdv) => (v === 0 ? Infinity : (s > 0 ? c + 1 - o : o - c) * tdv);
+  const sx = paso(d.x), sy = paso(d.y), sz = paso(d.z), tdx = td(d.x), tdy = td(d.y), tdz = td(d.z);
+  let tx = t0(o.x, x, d.x, sx, tdx), ty = t0(o.y, y, d.y, sy, tdy), tz = t0(o.z, z, d.z, sz, tdz);
+  let prev = null, t = 0;
+  while (t < ALCANCE) {
+    const b = get(x, y, z);
+    if (b !== AIRE && b !== AGUA) return { x, y, z, prev };
+    prev = [x, y, z];
+    if (tx < ty && tx < tz) { x += sx; t = tx; tx += tdx; }
+    else if (ty < tz) { y += sy; t = ty; ty += tdy; }
+    else { z += sz; t = tz; tz += tdz; }
+  }
+  return null;
+}
+function romperBloque(h) {
+  if (h.y === 0) return;                         // el fondo del mundo no se rompe
+  const t = get(h.x, h.y, h.z);
+  // si hay agua al lado, el hueco se llena de agua
+  const agua = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]].some(([a, b, c]) => get(h.x + a, h.y + b, h.z + c) === AGUA);
+  cambiar(h.x, h.y, h.z, agua ? AGUA : AIRE);
+  estallido(h.x, h.y, h.z, t);
+  sonido(t === VIDRIO ? 4000 : t === HOJAS ? 2500 : 900, .18, .5);
+}
+function poner() {
+  const h = apuntar(); if (!h || !h.prev) return;
+  const [x, y, z] = h.prev, antes = get(x, y, z), t = BARRA[elegido];
+  if (!set(x, y, z, t)) return;
+  if (choca(p.x, p.y, p.z)) { set(x, y, z, antes); return; }
+  cambiar(x, y, z, t);
+  golpe = 1; sonido(600, .12, .6);
+}
+
+// ================= Barra de bloques =================
+let BARRA = BARRA_INICIAL.slice(), elegido = 0;
+const barra = $("barra"), nombre = $("nombre");
+function ranura(t, num, sel, alClic) {
+  const d = document.createElement("div");
+  d.className = "ranura" + (sel ? " sel" : "");
+  d.title = NOMBRES[t];
+  d.innerHTML = `<img src="${ICONO[t]}">` + (num ? `<span>${num}</span>` : "");
+  d.onclick = alClic;
+  return d;
+}
+function pintarBarra() {
+  barra.replaceChildren(...BARRA.map((t, i) => ranura(t, i + 1, i === elegido, () => elegir(i))));
+  if (!$("pInventario").classList.contains("oculto")) pintarInventario();
+}
+let tNombre = 0;
+function elegir(i) {
+  elegido = i;
+  [...barra.children].forEach((d, k) => d.classList.toggle("sel", k === i));
+  enMano.geometry.dispose(); enMano.geometry = geoBloque(BARRA[i]);
+  nombre.textContent = NOMBRES[BARRA[i]]; nombre.style.opacity = 1; clearTimeout(tNombre);
+  tNombre = setTimeout(() => (nombre.style.opacity = 0), 1500);
+}
+function pintarInventario() {
+  $("rejilla").replaceChildren(...TODOS.map(t => ranura(t, "", false, () => { clicMenu(); BARRA[elegido] = t; pintarBarra(); elegir(elegido); })));
+  $("invBarra").replaceChildren(...BARRA.map((t, i) => ranura(t, i + 1, i === elegido, () => { clicMenu(); elegir(i); pintarInventario(); })));
+}
+
+// ================= Guardado (carpeta en el servidor local, o navegador si no hay servidor) =================
+const limpio = n => (n || "").trim().replace(/[^\p{L}\p{N}_\- ]/gu, "").slice(0, 40).trim();
+const ls = {
+  get(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
+};
+const Guardado = {
+  servidor: false, carpeta: "",
+  async iniciar() {
+    try { const r = await fetch("api/ping"); if (r.ok) { this.servidor = true; this.carpeta = (await r.json()).carpeta; } } catch { }
+  },
+  async jugadores() {
+    if (this.servidor) return (await fetch("api/jugadores")).json();
+    return ls.get("mb_jugadores", []);
+  },
+  async agregarJugador(n) {
+    if (this.servidor) { await fetch("api/jugador?nombre=" + encodeURIComponent(n), { method: "POST" }); return; }
+    const l = ls.get("mb_jugadores", []); if (!l.includes(n)) l.push(n); ls.set("mb_jugadores", l.sort());
+  },
+  async mundos(j) {
+    if (this.servidor) return (await fetch("api/mundos?jugador=" + encodeURIComponent(j))).json();
+    return ls.get("mb_mundos_" + j, []).sort((a, b) => (b.jugado || "").localeCompare(a.jugado || ""));
+  },
+  async cargar(j, id) {
+    if (this.servidor) { const r = await fetch(`api/mundo?jugador=${encodeURIComponent(j)}&mundo=${encodeURIComponent(id)}`); return r.ok ? r.json() : null; }
+    return ls.get(`mb_mundo_${j}_${id}`, null);
+  },
+  async guardar(j, id, datos) {
+    if (this.servidor) {
+      const r = await fetch(`api/mundo?jugador=${encodeURIComponent(j)}&mundo=${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify(datos) });
+      return r.ok;
+    }
+    const lista = ls.get("mb_mundos_" + j, []).filter(m => m.id !== id);
+    lista.push({ id, nombre: datos.nombre, tipo: datos.tipo, jugado: datos.jugado });
+    return ls.set("mb_mundos_" + j, lista) && ls.set(`mb_mundo_${j}_${id}`, datos);
+  },
+  // al cerrar la pestaña: envío que el navegador termina aunque la página se cierre
+  alSalir(j, id, datos) {
+    if (this.servidor) navigator.sendBeacon(`api/mundo?jugador=${encodeURIComponent(j)}&mundo=${encodeURIComponent(id)}`, JSON.stringify(datos));
+    else this.guardar(j, id, datos);
+  },
+};
+
+let jugador = "", actual = null;     // actual = datos del mundo en juego
+function datosMundo() {
+  const lista = [];
+  for (const [k, t] of cambios) lista.push([k % SX, Math.floor(k / (SX * SZ)), Math.floor(k / SX) % SZ, t]);
+  return { version: 1, nombre: actual.nombre, id: actual.id, semilla: actual.semilla, tipo: actual.tipo, creado: actual.creado,
+           jugado: new Date().toISOString(), pos: { x: p.x, y: p.y, z: p.z, yaw, pitch }, barra: BARRA.slice(), volar, cambios: lista };
+}
+let tToast = 0;
+function aviso(txt) { const t = $("toast"); t.textContent = txt; t.style.opacity = 1; clearTimeout(tToast); tToast = setTimeout(() => (t.style.opacity = 0), 2000); }
+async function guardar(silencio) {
+  if (!actual) return;
+  try {
+    const ok = await Guardado.guardar(jugador, actual.id, datosMundo());
+    hayCambios = false;
+    if (!silencio || !ok) aviso(ok ? "Mundo guardado" : "¡No se pudo guardar!");
+  } catch { aviso("¡No se pudo guardar!"); }
+}
+setInterval(() => { if (actual && (modo === "jugando" || modo === "pausa")) guardar(true); }, 30000);
+addEventListener("beforeunload", () => { if (actual) Guardado.alSalir(jugador, actual.id, datosMundo()); });
+
+// ================= Menús =================
+let modo = "menu";   // menu | jugando | pausa | inventario
+const PANTALLAS = ["pTitulo", "pJugadores", "pMundos", "pCrear", "pPausa", "pInventario", "pCargando"];
+function mostrar(id) {
+  $("menu").classList.remove("oculto");
+  $("menu").classList.toggle("pausa", id === "pPausa" || id === "pInventario");
+  PANTALLAS.forEach(p => $(p).classList.toggle("oculto", p !== id));
+}
+function ocultarMenu() { $("menu").classList.add("oculto"); }
+const bloqueado = () => document.pointerLockElement === lienzoEscena;
+function bloquear() { try { const r = lienzoEscena.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch { } }
+
+$("bJugar").onclick = () => { clicMenu(); verJugadores(); };
+$("bVolverTitulo").onclick = $("bVolverTitulo2").onclick = () => { clicMenu(); mostrar("pTitulo"); };
+$("bCambiarJugador").onclick = () => { clicMenu(); verJugadores(); };
+
+async function verJugadores() {
+  mostrar("pJugadores");
+  const l = await Guardado.jugadores(), cont = $("listaJugadores");
+  cont.replaceChildren();
+  if (!l.length) cont.innerHTML = `<div class="vacio">Todavía no hay jugadores. Escribe tu nombre abajo.</div>`;
+  l.forEach(n => {
+    const d = document.createElement("div"); d.className = "item"; d.textContent = n;
+    d.onclick = () => { clicMenu(); jugador = n; verMundos(); };
+    cont.appendChild(d);
+  });
+}
+async function agregarJugador() {
+  const n = limpio($("nuevoJugador").value);
+  if (!n) return;
+  clicMenu();
+  await Guardado.agregarJugador(n);
+  $("nuevoJugador").value = ""; jugador = n; verMundos();
+}
+$("bAgregarJugador").onclick = agregarJugador;
+$("nuevoJugador").addEventListener("keydown", e => { if (e.key === "Enter") agregarJugador(); });
+
+let mundoElegido = null, listaMundos = [];
+async function verMundos() {
+  mostrar("pMundos");
+  $("tituloMundos").textContent = "Mundos de " + jugador;
+  listaMundos = await Guardado.mundos(jugador);
+  mundoElegido = null; $("bJugarMundo").disabled = true;
+  const cont = $("listaMundos"); cont.replaceChildren();
+  if (!listaMundos.length) cont.innerHTML = `<div class="vacio">No tienes mundos todavía. ¡Crea uno!</div>`;
+  listaMundos.forEach(m => {
+    const d = document.createElement("div"); d.className = "item";
+    const fecha = m.jugado ? new Date(m.jugado).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }) : "";
+    d.innerHTML = `${m.nombre}<small>${m.tipo === "plano" ? "Plano" : "Normal"} · última vez: ${fecha}</small>`;
+    d.onclick = () => { clicMenu(); mundoElegido = m; [...cont.children].forEach(c => c.classList.toggle("sel", c === d)); $("bJugarMundo").disabled = false; };
+    d.ondblclick = () => abrirMundo(m);
+    cont.appendChild(d);
+  });
+}
+$("bJugarMundo").onclick = () => { if (mundoElegido) { clicMenu(); abrirMundo(mundoElegido); } };
+async function abrirMundo(m) {
+  const datos = await Guardado.cargar(jugador, m.id);
+  if (!datos) { aviso("No se pudo abrir el mundo"); return; }
+  datos.id = m.id;
+  entrarMundo(datos);
+}
+
+let tipoNuevo = "normal";
+$("bNuevoMundo").onclick = () => { clicMenu(); tipoNuevo = "normal"; $("bTipo").textContent = "Tipo de mundo: Normal"; $("nombreMundo").value = "Mi mundo"; $("semillaMundo").value = ""; mostrar("pCrear"); };
+$("bTipo").onclick = () => { clicMenu(); tipoNuevo = tipoNuevo === "normal" ? "plano" : "normal"; $("bTipo").textContent = "Tipo de mundo: " + (tipoNuevo === "plano" ? "Plano (para construir)" : "Normal"); };
+$("bCancelarCrear").onclick = () => { clicMenu(); verMundos(); };
+$("bCrear").onclick = () => {
+  clicMenu();
+  let n = limpio($("nombreMundo").value) || "Mi mundo";
+  const usados = new Set(listaMundos.map(m => m.id.toLowerCase()));
+  let id = n, k = 2;
+  while (usados.has(id.toLowerCase())) id = `${n} ${k++}`;
+  entrarMundo({ version: 1, nombre: id, id, semilla: textoASemilla($("semillaMundo").value), tipo: tipoNuevo,
+                creado: new Date().toISOString(), cambios: [] }, true);
+};
+
+async function entrarMundo(datos, nuevo) {
+  mostrar("pCargando");
+  await new Promise(r => setTimeout(r, 60));
+  actual = datos;
+  generar(datos.semilla, datos.tipo);
+  cambios = new Map();
+  for (const [x, y, z, t] of datos.cambios || []) if (set(x, y, z, t)) cambios.set(idx(x, y, z), t);
+  construirTodo();
+  if (datos.pos) { p.x = datos.pos.x; p.y = datos.pos.y; p.z = datos.pos.z; yaw = datos.pos.yaw; pitch = datos.pos.pitch; p.vy = 0; }
+  else { aparecer(); yaw = Math.PI * .75; pitch = -.15; }
+  BARRA = Array.isArray(datos.barra) && datos.barra.length === 9 ? datos.barra.slice() : BARRA_INICIAL.slice();
+  volar = !!datos.volar;
+  elegido = 0; pintarBarra(); elegir(0);
+  hayCambios = false;
+  empezarJuego();
+  if (nuevo) guardar(true);
+}
+function empezarJuego() {
+  modo = "jugando";
+  ocultarMenu();
+  $("hud").classList.remove("oculto");
+  $("aviso").classList.toggle("oculto", !!caras || bloqueado());
+}
+
+function pausar() {
+  if (modo !== "jugando") return;
+  modo = "pausa"; soltarControles();
+  if (bloqueado()) document.exitPointerLock();          // soltar el mouse para poder usar el menú
+  $("infoPausa").innerHTML = `Jugador: <b>${jugador}</b> · Mundo: <b>${actual.nombre}</b><br>` +
+    (Guardado.servidor ? `Se guarda en: ${Guardado.carpeta}\\${jugador}\\${actual.id}.json` : "Se guarda en este navegador");
+  mostrar("pPausa");
+  guardar(true);
+}
+function volverAlJuego() { clicMenu(); empezarJuego(); if (!caras) bloquear(); }
+$("bVolverJuego").onclick = volverAlJuego;
+$("bGuardar").onclick = () => { clicMenu(); guardar(); };
+$("bSalir").onclick = async () => {
+  clicMenu();
+  await guardar();
+  actual = null; modo = "menu";
+  $("hud").classList.add("oculto");
+  verMundos();
+};
+function abrirInventario() {
+  modo = "inventario"; soltarControles();
+  if (bloqueado()) document.exitPointerLock();
+  pintarInventario(); mostrar("pInventario");
+}
+function cerrarInventario() { empezarJuego(); if (!caras) bloquear(); }
+function soltarControles() { for (const k in teclas) teclas[k] = false; clicIzq = false; }
+
+// ================= Mouse y teclado =================
+const teclas = {};
+let clicIzq = false, verCoords = false;
+addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" && e.target.type === "text") return;
+  if (modo === "inventario") { if (e.code === "KeyE" || e.code === "Escape") cerrarInventario(); return; }
+  if (modo === "pausa") { if (e.code === "Escape") volverAlJuego(); return; }
+  if (modo !== "jugando") return;
+  activarAudio();
+  teclas[e.code] = true;
+  const n = +e.key; if (n >= 1 && n <= 9) elegir(n - 1);
+  if (e.code === "KeyC") centrar();
+  if (e.code === "KeyH") $("panel").classList.toggle("sinAyuda");
+  if (e.code === "KeyF") { volar = !volar; p.vy = 0; aviso(volar ? "Volar: SÍ (espacio sube, Shift baja)" : "Volar: NO"); }
+  if (e.code === "KeyE") abrirInventario();
+  if (e.code === "F3") { e.preventDefault(); verCoords = !verCoords; }
+  if (e.code === "KeyP" || (e.code === "Escape" && !bloqueado())) pausar();
+  if (e.code === "Space") e.preventDefault();
+});
+addEventListener("keyup", e => { teclas[e.code] = false; });
+lienzoEscena.addEventListener("click", () => { activarAudio(); if (modo === "jugando" && !bloqueado()) bloquear(); });
+document.addEventListener("pointerlockchange", () => {
+  if (bloqueado()) $("aviso").classList.add("oculto");
+  else if (modo === "jugando") { if (caras) $("aviso").classList.add("oculto"); else pausar(); }
+});
+addEventListener("mousemove", e => {
+  if (!bloqueado() || modo !== "jugando") return;
+  yaw -= e.movementX * .0025; pitch -= e.movementY * .0025;
+});
+addEventListener("mousedown", e => {
+  if (!bloqueado() || modo !== "jugando") return;
+  if (e.button === 0) clicIzq = true; else if (e.button === 2) poner();
+});
+addEventListener("mouseup", e => { if (e.button === 0) clicIzq = false; });
+addEventListener("contextmenu", e => e.preventDefault());
+addEventListener("wheel", e => { if (modo === "jugando") elegir((elegido + (e.deltaY > 0 ? 1 : BARRA.length - 1)) % BARRA.length); });
+
+// ================= Cámara web: la cabeza mueve, las manos construyen (MediaPipe) =================
+// Idea tomada de Project Gameface (Google): giro de cabeza y gestos de la cara para controlar; filtro One Euro para el temblor.
+const video = $("video");
+const trazo = $("trazo"), tctx = trazo.getContext("2d");
+const estado = $("estado");
+const btnCam = $("btnCam");
+const sens = $("sens");
+$("btnCentro").onclick = () => centrar();
+let caras = null, manosDet = null, ultimoTiempo = -1, ultimoCam = 0;
+
+// filtro One Euro (Casiez 2012): suaviza mucho cuando la cabeza está quieta y poco cuando se mueve rápido
+class Filtro {
+  constructor(minCorte = 1.5, beta = 6) { this.minCorte = minCorte; this.beta = beta; this.x = null; this.dx = 0; }
+  alfa(corte, dt) { const r = 2 * Math.PI * corte * dt; return r / (r + 1); }
+  paso(v, dt) {
+    if (this.x === null) { this.x = v; return v; }
+    this.dx += this.alfa(1, dt) * ((v - this.x) / dt - this.dx);
+    this.x += this.alfa(this.minCorte + this.beta * Math.abs(this.dx), dt) * (v - this.x);
+    return this.x;
+  }
+}
+
+const ZM = 0.03;          // giro pequeño de la cabeza que no mueve la vista
+const UMBRAL = 0.10;      // pasado este giro, la vista sigue girando sola
+const ADELANTE = 1.08, ATRAS = 0.92;   // cuánto acercarse o alejarse de la cámara para caminar
+const BOCA = 0.4;         // boca abierta = saltar
+const cabeza = { neutro: null, muestras: [], vGiro: 0, vIncl: 0, andar: 0, boca: false,
+                 fg: new Filtro(), fi: new Filtro(), ft: new Filtro(1, 1) };
+let yawCabeza = 0, pitchCabeza = 0;    // lo que la cabeza suma a la vista del mouse
+function centrar() { cabeza.neutro = null; cabeza.muestras = []; }
+
+btnCam.onclick = async () => {
+  activarAudio();
+  btnCam.disabled = true;
+  try {
+    estado.textContent = "Pidiendo permiso de la cámara...";
+    video.srcObject = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+    await video.play();
+    $("camara").classList.remove("oculto");
+    estado.textContent = "Cargando detectores de cara y manos...";
+    const archivos = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    const base = "https://storage.googleapis.com/mediapipe-models/";
+    const crear = async (Clase, modelo, extra) => {
+      const op = d => ({ baseOptions: { modelAssetPath: base + modelo, delegate: d }, runningMode: "VIDEO", ...extra });
+      try { return await Clase.createFromOptions(archivos, op("GPU")); }
+      catch { return await Clase.createFromOptions(archivos, op("CPU")); }
+    };
+    caras = await crear(FaceLandmarker, "face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+                        { numFaces: 1, outputFaceBlendshapes: true });
+    manosDet = await crear(HandLandmarker, "hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", { numHands: 2 });
+    btnCam.textContent = "Cámara activa";
+    $("aviso").classList.add("oculto");
+    if (bloqueado()) document.exitPointerLock();
+  } catch (err) {
+    estado.textContent = "No se pudo activar: " + err.message;
+    btnCam.disabled = false;
+  }
+};
+
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+// ---------- cabeza ----------
+function medirCabeza(m) {
+  const nariz = m[1], c1 = m[234], c2 = m[454], frente = m[10], menton = m[152];
+  const ancho = dist(c1, c2), alto = dist(frente, menton);
+  return {
+    giro: (nariz.x - (c1.x + c2.x) / 2) / ancho,           // + = cabeza girada a tu izquierda
+    incl: (nariz.y - (frente.y + menton.y) / 2) / alto,      // + = cabeza hacia abajo
+    ancho, alto,
+  };
+}
+function leerCabeza(res, dt) {
+  const m = res.faceLandmarks && res.faceLandmarks[0];
+  if (!m) { cabeza.vGiro = cabeza.vIncl = 0; cabeza.andar = 0; cabeza.boca = false; return "No veo tu cara"; }
+  const v = medirCabeza(m);
+  const w = trazo.width, h = trazo.height;
+  tctx.strokeStyle = "#69f0ae"; tctx.lineWidth = 2;
+  const xs = [m[234].x, m[454].x], ys = [m[10].y, m[152].y];
+  tctx.strokeRect(Math.min(...xs) * w, ys[0] * h, Math.abs(xs[1] - xs[0]) * w, (ys[1] - ys[0]) * h);
+
+  if (!cabeza.neutro) {                                  // calibración: 20 cuadros mirando al centro
+    cabeza.muestras.push(v);
+    if (cabeza.muestras.length < 20) return "Mira al centro de la pantalla...";
+    const prom = k => cabeza.muestras.reduce((s, q) => s + q[k], 0) / cabeza.muestras.length;
+    cabeza.neutro = { giro: prom("giro"), incl: prom("incl"), ancho: prom("ancho"), alto: prom("alto") };
+    cabeza.fg = new Filtro(); cabeza.fi = new Filtro(); cabeza.ft = new Filtro(1, 1);
+  }
+  const N = cabeza.neutro;
+  const g = cabeza.fg.paso(v.giro - N.giro, dt);
+  const i = cabeza.fi.paso(v.incl - N.incl, dt);
+  // acercarse: la cara se ve más grande (se usa el mayor de ancho y alto, así girar la cabeza no cuenta como alejarse)
+  const t = cabeza.ft.paso(Math.max(v.ancho / N.ancho, v.alto / N.alto), dt);
+  // si la cabeza está casi al centro, el centro se ajusta despacio (uno se acomoda en la silla sin recalibrar)
+  if (Math.abs(g) < ZM) N.giro += (v.giro - N.giro) * .004;
+  if (Math.abs(i) < ZM) N.incl += (v.incl - N.incl) * .004;
+
+  const k = +sens.value;
+  const zm = x => (Math.abs(x) < ZM ? 0 : x - Math.sign(x) * ZM);
+  const exceso = x => (Math.abs(x) < UMBRAL ? 0 : x - Math.sign(x) * UMBRAL);
+  yawCabeza = zm(g) * 4 * k;                 // mirar: la vista sigue a la cabeza
+  pitchCabeza = -zm(i) * 6 * k;
+  cabeza.vGiro = exceso(g) * 16 * k;         // girar más: la vista sigue girando
+  cabeza.vIncl = -exceso(i) * 10 * k;
+  cabeza.andar = t > ADELANTE ? 1 : t < ATRAS ? -1 : 0;
+  const boca = res.faceBlendshapes && res.faceBlendshapes[0] &&
+               res.faceBlendshapes[0].categories.find(c => c.categoryName === "jawOpen");
+  cabeza.boca = !!boca && boca.score > BOCA;
+  return [cabeza.andar > 0 ? "AVANZANDO" : cabeza.andar < 0 ? "RETROCEDIENDO" : "quieto",
+          cabeza.vGiro ? "GIRANDO" : "", cabeza.boca ? "SALTO" : ""].filter(Boolean).join(" · ");
+}
+
+// ---------- manos (cualquiera de las dos) ----------
+// devuelve el gesto que EMPIEZA en este cuadro ('indice', 'medio' o 'puno'); est.g guarda el que se sostiene
+function gesto(m, est) {
+  const t = dist(m[0], m[9]);
+  const rI = dist(m[4], m[8]) / t, rM = dist(m[4], m[12]) / t;
+  // dedo doblado: la punta queda más cerca de la muñeca que la articulación media
+  const doblados = [[8, 6], [12, 10], [16, 14], [20, 18]].filter(([a, b]) => dist(m[a], m[0]) < dist(m[b], m[0])).length;
+  let nuevo = est.g;
+  if (est.g === null) {
+    if (doblados >= 4) nuevo = "puno";
+    else if (rI < 0.3 && rI <= rM) nuevo = "indice";
+    else if (rM < 0.3 && rM < rI) nuevo = "medio";
+  }
+  else if (est.g === "puno") { if (doblados <= 1) nuevo = null; }
+  else if (rI > 0.45 && rM > 0.45) nuevo = null;
+  const inicio = nuevo !== null && nuevo !== est.g ? nuevo : null;
+  est.g = nuevo;
+  return inicio;
+}
+
+const UNIONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],
+                 [9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+function dibujarMano(m, color) {
+  const w = trazo.width, h = trazo.height;
+  tctx.strokeStyle = color; tctx.lineWidth = 3;
+  for (const [a, b] of UNIONES) { tctx.beginPath(); tctx.moveTo(m[a].x * w, m[a].y * h); tctx.lineTo(m[b].x * w, m[b].y * h); tctx.stroke(); }
+}
+
+const estManos = {};
+let rompiendo = false;
+function leerManos(res) {
+  const vistas = new Set();
+  rompiendo = false;
+  let txt = "";
+  (res.landmarks || []).forEach((m, i) => {
+    const id = (res.handedness && res.handedness[i] && res.handedness[i][0]) ? res.handedness[i][0].categoryName : String(i);
+    vistas.add(id);
+    const est = estManos[id] || (estManos[id] = { g: null });
+    const g = gesto(m, est);
+    if (modo === "jugando") { if (g === "medio") poner(); else if (g === "puno") elegir((elegido + 1) % BARRA.length); }
+    if (est.g === "indice") rompiendo = true;
+    if (est.g) txt = est.g === "indice" ? "ROMPIENDO" : est.g === "medio" ? "PONER" : "CAMBIO";
+    dibujarMano(m, "#ffeb3b");
+  });
+  for (const id in estManos) if (!vistas.has(id)) estManos[id].g = null;
+  return txt;
+}
+
+function leerCamara() {
+  if (!caras || video.readyState < 2 || video.currentTime === ultimoTiempo) return;
+  ultimoTiempo = video.currentTime;
+  const ahora = performance.now();
+  const dt = Math.min(.2, Math.max(.001, (ahora - ultimoCam) / 1000)); ultimoCam = ahora;
+  trazo.width = video.videoWidth; trazo.height = video.videoHeight;
+  tctx.clearRect(0, 0, trazo.width, trazo.height);
+  const tc = leerCabeza(caras.detectForVideo(video, ahora), dt);
+  const tm = manosDet ? leerManos(manosDet.detectForVideo(video, ahora)) : "";
+  estado.textContent = "Cabeza: " + tc + (tm ? " | Mano: " + tm : "");
+}
+
+// ================= Bucle =================
+const bajoAgua = $("bajoAgua");
+const minando = { k: "", t: 0 };
+let antes = performance.now(), paso = 0, tPaso = 0;
+const fpsEl = $("fps");
+let cuadros = 0, tFps = 0;
+function cuadro(ahora) {
+  const dt = Math.min(.05, (ahora - antes) / 1000); antes = ahora;
+  cuadros++; if (ahora - tFps > 1000) { fpsEl.textContent = cuadros + " fps"; cuadros = 0; tFps = ahora; }
+  leerCamara();
+  const jugando = modo === "jugando";
+
+  if (modo === "menu") {
+    // fondo del menú: la vista gira despacio sobre el mundo
+    yaw += dt * .05;
+    camera.position.set(SX / 2, cima(SX / 2, SZ / 2) + 9, SZ / 2);
+    camera.rotation.set(-.25, yaw, 0);
+    enMano.visible = false; marco.visible = false; grieta.visible = false;
+  } else {
+    enMano.visible = true;
+    if (jugando) { yaw += cabeza.vGiro * dt; pitch += cabeza.vIncl * dt; }
+    pitch = Math.max(-1.55, Math.min(1.55, pitch));
+    const yawVista = yaw + (jugando ? yawCabeza : 0);
+    const pitchVista = Math.max(-1.55, Math.min(1.55, pitch + (jugando ? pitchCabeza : 0)));
+
+    // --- movimiento ---
+    let fwd = 0, lado = 0, saltar = false, bajar = false;
+    if (jugando) {
+      fwd = Math.max(-1, Math.min(1, (teclas.KeyW ? 1 : 0) - (teclas.KeyS ? 1 : 0) + cabeza.andar));
+      lado = (teclas.KeyD ? 1 : 0) - (teclas.KeyA ? 1 : 0);
+      saltar = teclas.Space || cabeza.boca;
+      bajar = teclas.ShiftLeft || teclas.ShiftRight;
+    }
+    const enAgua = get(Math.floor(p.x), Math.floor(p.y + .4), Math.floor(p.z)) === AGUA;
+    const n = Math.hypot(fwd, lado) || 1, s = Math.sin(yawVista), c = Math.cos(yawVista);
+    const v = volar ? VEL_VUELO : VEL * (enAgua ? .55 : 1);
+    const vx = ((-s * fwd + c * lado) / n) * v, vz = ((-c * fwd - s * lado) / n) * v;
+
+    if (volar) p.vy = ((saltar ? 1 : 0) - (bajar ? 1 : 0)) * 6;
+    else if (enAgua) { p.vy = Math.max(p.vy - G * .25 * dt, -2.5); if (saltar) p.vy = Math.min(p.vy + 22 * dt, 3.4); }
+    else { p.vy = Math.max(p.vy - G * dt, -30); if (saltar && p.enSuelo) p.vy = SALTO; }
+    let choque = false;
+    const nx = p.x + vx * dt; if (!choca(nx, p.y, p.z)) p.x = nx; else choque = true;
+    const nz = p.z + vz * dt; if (!choca(p.x, p.y, nz)) p.z = nz; else choque = true;
+    const ny = p.y + p.vy * dt;
+    if (!choca(p.x, ny, p.z)) { p.y = Math.min(ny, SY + 20); p.enSuelo = false; }
+    else {
+      if (p.vy < 0) { const sy = Math.floor(ny) + 1; if (!choca(p.x, sy, p.z)) p.y = sy; p.enSuelo = true; }
+      p.vy = 0;
+    }
+    if (choque && !volar && (p.enSuelo || enAgua)) p.vy = enAgua ? 5 : SALTO;      // salto automático al chocar con un escalón
+    if (p.y < -10) aparecer();
+
+    // --- cámara con balanceo al caminar ---
+    const caminando = (vx || vz) && p.enSuelo && !volar;
+    if (caminando) { paso += dt * 9; tPaso += dt; if (tPaso > .42) { tPaso = 0; sonido(350, .07, .25); } }
+    camera.position.set(p.x, p.y + OJOS + (caminando ? Math.abs(Math.sin(paso)) * .06 : 0), p.z);
+    camera.rotation.set(pitchVista, yawVista, 0);
+    const ojos = get(Math.floor(camera.position.x), Math.floor(camera.position.y), Math.floor(camera.position.z));
+    bajoAgua.style.display = ojos === AGUA ? "block" : "none";
+    scene.fog.near = ojos === AGUA ? 1 : 35; scene.fog.far = ojos === AGUA ? 14 : 85;
+    $("coords").textContent = verCoords ? `X ${p.x.toFixed(1)}  Y ${p.y.toFixed(1)}  Z ${p.z.toFixed(1)}${volar ? "  (volando)" : ""}` : "";
+
+    // --- apuntar y romper (mantener) ---
+    const h = jugando ? apuntar() : null;
+    marco.visible = !!h;
+    const quiereRomper = jugando && (clicIzq || rompiendo);
+    if (h) {
+      marco.position.set(h.x + .5, h.y + .5, h.z + .5);
+      const k = h.x + "," + h.y + "," + h.z;
+      if (quiereRomper) {
+        if (minando.k !== k) { minando.k = k; minando.t = 0; }
+        minando.t += dt;
+        const prog = minando.t / dureza(get(h.x, h.y, h.z));
+        if (prog >= 1) { romperBloque(h); minando.k = ""; }
+        else {
+          grieta.visible = true; grieta.position.copy(marco.position);
+          grieta.material = matGrieta[Math.min(7, Math.floor(prog * 8))];
+          if (Math.floor((minando.t - dt) * 5) !== Math.floor(minando.t * 5)) sonido(700, .05, .2);
+        }
+      } else { minando.k = ""; grieta.visible = false; }
+    } else { minando.k = ""; grieta.visible = false; }
+    if (!minando.k) grieta.visible = false;
+
+    // --- bloque en la mano ---
+    if (quiereRomper) golpe = .5 + .5 * Math.sin(ahora / 60);
+    else golpe = Math.max(0, golpe - dt * 5);
+    const balanceo = caminando ? Math.sin(paso) * .03 : 0;
+    enMano.position.set(.55 + balanceo, -.48 + Math.abs(balanceo) - golpe * .08, -.85 - golpe * .1);
+    enMano.rotation.set(.15 - golpe * .6, .75, 0);
+  }
+
+  // --- partículas ---
+  for (let i = particulas.length - 1; i >= 0; i--) {
+    const q = particulas[i];
+    q.vy -= 15 * dt; q.m.position.x += q.vx * dt; q.m.position.y += q.vy * dt; q.m.position.z += q.vz * dt;
+    if (solido(Math.floor(q.m.position.x), Math.floor(q.m.position.y), Math.floor(q.m.position.z))) { q.vy = 0; q.vx *= .5; q.vz *= .5; }
+    if ((q.vida -= dt) <= 0) { scene.remove(q.m); particulas.splice(i, 1); }
+  }
+
+  // --- cielo ---
+  nubes.position.set(camera.position.x, SY + 30, camera.position.z);
+  nubesT.offset.x += dt * .0015;
+  sol.position.copy(camera.position).add(new THREE.Vector3(.5, .75, -.45).normalize().multiplyScalar(140));
+  sol.lookAt(camera.position);
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(cuadro);
+}
+
+// ================= Inicio =================
+generar(2024, "normal");
+construirTodo();
+pintarBarra();
+requestAnimationFrame(cuadro);
+Guardado.iniciar().then(() => {
+  $("dondeGuarda").textContent = Guardado.servidor
+    ? "Los mundos se guardan en: " + Guardado.carpeta
+    : location.hostname === "localhost" || location.hostname === "127.0.0.1"
+      ? "Sin servidor: los mundos se guardan solo en este navegador. Abre el juego con abrir.bat para guardarlos en la carpeta."
+      : "Tus mundos se guardan en este navegador (vuelve con el mismo navegador para seguir jugando).";
+});
+</script>
+</body>
+</html>

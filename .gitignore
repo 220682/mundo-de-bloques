@@ -1,0 +1,4 @@
+# partidas de los jugadores y notas locales: no se publican
+partidas/
+LEEME.md
+__pycache__/
